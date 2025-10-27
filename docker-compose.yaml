@@ -5,9 +5,10 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./backend:/app
       - ./backend/database.sqlite:/app/database.sqlite
+      - ./backend/uploads:/app/uploads
     environment:
+      - NODE_ENV=production
       - EMAIL=${EMAIL}
       - PASS=${PASS}
     restart: unless-stopped
