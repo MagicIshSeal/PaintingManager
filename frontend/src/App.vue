@@ -1,12 +1,38 @@
 <script setup>
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from './stores/auth'
+
+const authStore = useAuthStore()
+const router = useRouter()
+const route = useRoute()
+
+async function handleLogout() {
+  await authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
   <div id="app">
-    <header>
-      <h1>🎨 Schilderijen Beheer</h1>
-      <p>Beheerder Dashboard</p>
+    <header v-if="authStore.isAuthenticated">
+      <div class="header-content">
+        <div>
+          <h1>🎨 Schilderijen Beheer</h1>
+          <p>Beheerder Dashboard</p>
+        </div>
+        <div class="user-section">
+          <nav class="nav-menu">
+            <RouterLink to="/paintings" class="nav-link" :class="{ active: route.path === '/paintings' }">
+              📋 Lijst
+            </RouterLink>
+            <RouterLink to="/calendar" class="nav-link" :class="{ active: route.path === '/calendar' }">
+              📅 Kalender
+            </RouterLink>
+          </nav>
+          <span class="username">👤 {{ authStore.user?.username }}</span>
+          <button @click="handleLogout" class="logout-btn">Uitloggen</button>
+        </div>
+      </div>
     </header>
     <main>
       <RouterView />
@@ -39,7 +65,14 @@ header {
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   margin-bottom: 30px;
-  text-align: center;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
 }
 
 header h1 {
@@ -51,6 +84,60 @@ header h1 {
 header p {
   color: #666;
   font-size: 1.1em;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.nav-menu {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-link {
+  padding: 10px 20px;
+  background: #f0f0f0;
+  color: #333;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.nav-link:hover {
+  background: #e0e0e0;
+  transform: translateY(-2px);
+}
+
+.nav-link.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.username {
+  color: #333;
+  font-weight: 500;
+}
+
+.logout-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.logout-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 main {

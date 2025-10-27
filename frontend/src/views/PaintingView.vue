@@ -135,6 +135,13 @@
         >
           Uitgeleend ({{ lentCount }})
         </button>
+        <button 
+          @click="filter = 'overdue'" 
+          :class="{ active: filter === 'overdue' }"
+          class="tab tab-overdue"
+        >
+          Achterstallig ({{ overdueCount }})
+        </button>
       </div>
 
       <!-- Category Filter -->
@@ -166,8 +173,8 @@
           
           <div class="painting-header">
             <h3>{{ painting.title }}</h3>
-            <span class="status-badge" :class="painting.lent_to ? 'lent' : 'available'">
-              {{ painting.lent_to ? '🔴 Uitgeleend' : '🟢 Beschikbaar' }}
+            <span class="status-badge" :class="getStatusClass(painting)">
+              {{ getStatusText(painting) }}
             </span>
           </div>
           
@@ -180,6 +187,20 @@
             <p v-if="painting.lent_phone"><strong>📞 Telefoon:</strong> <a :href="'tel:' + painting.lent_phone">{{ painting.lent_phone }}</a></p>
             <p v-if="painting.lent_date"><strong>Sinds:</strong> {{ formatDate(painting.lent_date) }}</p>
             <p v-if="painting.due_date"><strong>Retour:</strong> {{ formatDate(painting.due_date) }}</p>
+            <p v-if="isOverdue(painting)" class="overdue-warning">
+              ⚠️ {{ getDaysOverdue(painting) }} dagen te laat!
+            </p>
+          </div>
+          
+          <div class="metadata-info">
+            <p v-if="painting.created_by" class="metadata-item">
+              <strong>📝 Aangemaakt:</strong> {{ painting.created_by }} 
+              <span v-if="painting.created_at" class="timestamp">{{ formatDateTime(painting.created_at) }}</span>
+            </p>
+            <p v-if="painting.modified_by && painting.modified_by !== painting.created_by || (painting.modified_at && painting.modified_at !== painting.created_at)" class="metadata-item">
+              <strong>🔄 Gewijzigd:</strong> {{ painting.modified_by }} 
+              <span v-if="painting.modified_at" class="timestamp">{{ formatDateTime(painting.modified_at) }}</span>
+            </p>
           </div>
           
           <div class="card-actions">
@@ -223,11 +244,13 @@ const form = ref({
 const filteredPaintings = computed(() => {
   let result = paintings.value
   
-  // Filter by status (all, available, lent)
+  // Filter by status (all, available, lent, overdue)
   if (filter.value === 'available') {
     result = result.filter(p => !p.lent_to)
   } else if (filter.value === 'lent') {
-    result = result.filter(p => p.lent_to)
+    result = result.filter(p => p.lent_to && !isOverdue(p))
+  } else if (filter.value === 'overdue') {
+    result = result.filter(p => isOverdue(p))
   }
   
   // Filter by category
@@ -239,11 +262,15 @@ const filteredPaintings = computed(() => {
 })
 
 const availableCount = computed(() => paintings.value.filter(p => !p.lent_to).length)
-const lentCount = computed(() => paintings.value.filter(p => p.lent_to).length)
+const lentCount = computed(() => paintings.value.filter(p => p.lent_to && !isOverdue(p)).length)
+const overdueCount = computed(() => paintings.value.filter(p => isOverdue(p)).length)
 
 async function fetchPaintings() {
   try {
-    const res = await fetch(`${API_URL}/api/paintings`)
+    const res = await fetch(`${API_URL}/api/paintings`, {
+      credentials: 'include'
+    })
+    if (!res.ok) throw new Error('Failed to fetch paintings')
     paintings.value = await res.json()
   } catch (error) {
     console.error('Error fetching paintings:', error)
@@ -252,7 +279,10 @@ async function fetchPaintings() {
 
 async function fetchCategories() {
   try {
-    const res = await fetch(`${API_URL}/api/categories`)
+    const res = await fetch(`${API_URL}/api/categories`, {
+      credentials: 'include'
+    })
+    if (!res.ok) throw new Error('Failed to fetch categories')
     categories.value = await res.json()
     filteredCategories.value = categories.value
   } catch (error) {
@@ -341,6 +371,7 @@ async function addPainting() {
     
     const res = await fetch(`${API_URL}/api/paintings`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     })
     if (res.ok) {
@@ -371,6 +402,7 @@ async function updatePainting() {
     
     const res = await fetch(`${API_URL}/api/paintings/${editingId.value}`, {
       method: 'PUT',
+      credentials: 'include',
       body: formData
     })
     if (res.ok) {
@@ -388,7 +420,8 @@ async function deletePainting(id) {
   
   try {
     const res = await fetch(`${API_URL}/api/paintings/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include'
     })
     if (res.ok) {
       await fetchPaintings()
@@ -434,6 +467,48 @@ function formatDate(dateString) {
   if (!dateString) return 'N.v.t.'
   const date = new Date(dateString)
   return date.toLocaleDateString('nl-NL', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('nl-NL', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function isOverdue(painting) {
+  if (!painting.lent_to || !painting.due_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(painting.due_date)
+  dueDate.setHours(0, 0, 0, 0)
+  return dueDate < today
+}
+
+function getDaysOverdue(painting) {
+  if (!isOverdue(painting)) return 0
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(painting.due_date)
+  dueDate.setHours(0, 0, 0, 0)
+  return Math.floor((today - dueDate) / (1000 * 60 * 60 * 24))
+}
+
+function getStatusClass(painting) {
+  if (!painting.lent_to) return 'available'
+  if (isOverdue(painting)) return 'overdue'
+  return 'lent'
+}
+
+function getStatusText(painting) {
+  if (!painting.lent_to) return '🟢 Beschikbaar'
+  if (isOverdue(painting)) return '🔴 Achterstallig'
+  return '🟡 Uitgeleend'
 }
 
 onMounted(() => {
@@ -657,6 +732,15 @@ h2 {
   color: #667eea;
 }
 
+.tab-overdue {
+  color: #dc3545;
+}
+
+.tab-overdue.active {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
 /* Category Filter */
 .category-filter {
   display: flex;
@@ -820,6 +904,21 @@ h2 {
   color: #856404;
 }
 
+.status-badge.overdue {
+  background: #f8d7da;
+  color: #721c24;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .painting-card p {
   margin: 8px 0;
   color: #666;
@@ -844,6 +943,39 @@ h2 {
 
 .lending-info a:hover {
   text-decoration: underline;
+}
+
+.overdue-warning {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 6px;
+  border-left: 4px solid #dc3545;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.metadata-info {
+  background: #f0f4ff;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 15px 0;
+  font-size: 0.9em;
+}
+
+.metadata-item {
+  margin: 4px 0 !important;
+  color: #555 !important;
+}
+
+.metadata-item strong {
+  color: #333;
+}
+
+.timestamp {
+  font-size: 0.9em;
+  color: #999;
+  margin-left: 4px;
 }
 
 .card-actions {

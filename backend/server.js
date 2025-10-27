@@ -9,6 +9,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { setupAuth, isAuthenticated } from "./routes/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,12 +50,21 @@ const upload = multer({
 
 app.use(express.json());
 app.use(cors({ 
-  origin: '*', // Allow all origins
+  origin: 'http://localhost:5173', // Frontend URL
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(session({ secret: "secret-key", resave: false, saveUninitialized: false }));
+app.use(session({ 
+  secret: process.env.SESSION_SECRET || "secret-key-change-in-production", 
+  resave: false, 
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true in production with HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -79,31 +89,40 @@ CREATE TABLE IF NOT EXISTS paintings (
   lent_email TEXT,
   lent_phone TEXT,
   lent_date TEXT,
-  due_date TEXT
+  due_date TEXT,
+  created_by TEXT,
+  created_at TEXT,
+  modified_by TEXT,
+  modified_at TEXT
 );
 `);
 
-// Get all paintings
-app.get("/api/paintings", async (req, res) => {
+// Setup authentication routes
+setupAuth(app, db);
+
+// Get all paintings - Protected route
+app.get("/api/paintings", isAuthenticated, async (req, res) => {
   const rows = await db.all("SELECT * FROM paintings ORDER BY id DESC");
   res.json(rows);
 });
 
-// Get all unique categories
-app.get("/api/categories", async (req, res) => {
+// Get all unique categories - Protected route
+app.get("/api/categories", isAuthenticated, async (req, res) => {
   const rows = await db.all("SELECT DISTINCT category FROM paintings WHERE category IS NOT NULL AND category != '' ORDER BY category");
   res.json(rows.map(row => row.category));
 });
 
-// Add new painting
-app.post("/api/paintings", upload.single("image"), async (req, res) => {
+// Add new painting - Protected route
+app.post("/api/paintings", isAuthenticated, upload.single("image"), async (req, res) => {
   const { title, address, category, lent_to, lent_email, lent_phone, lent_date, due_date } = req.body;
   const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+  const username = req.user.username;
+  const timestamp = new Date().toISOString();
   
   try {
     const result = await db.run(
-      "INSERT INTO paintings (title, address, category, image_url, lent_to, lent_email, lent_phone, lent_date, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null]
+      "INSERT INTO paintings (title, address, category, image_url, lent_to, lent_email, lent_phone, lent_date, due_date, created_by, created_at, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null, username, timestamp, username, timestamp]
     );
     res.status(201).json({ id: result.lastID, message: "Painting added successfully" });
   } catch (error) {
@@ -111,10 +130,12 @@ app.post("/api/paintings", upload.single("image"), async (req, res) => {
   }
 });
 
-// Update painting
-app.put("/api/paintings/:id", upload.single("image"), async (req, res) => {
+// Update painting - Protected route
+app.put("/api/paintings/:id", isAuthenticated, upload.single("image"), async (req, res) => {
   const { id } = req.params;
   const { title, address, category, lent_to, lent_email, lent_phone, lent_date, due_date } = req.body;
+  const username = req.user.username;
+  const timestamp = new Date().toISOString();
   
   try {
     // Get existing painting to check for old image
@@ -134,8 +155,8 @@ app.put("/api/paintings/:id", upload.single("image"), async (req, res) => {
     }
     
     await db.run(
-      "UPDATE paintings SET title = ?, address = ?, category = ?, image_url = ?, lent_to = ?, lent_email = ?, lent_phone = ?, lent_date = ?, due_date = ? WHERE id = ?",
-      [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null, id]
+      "UPDATE paintings SET title = ?, address = ?, category = ?, image_url = ?, lent_to = ?, lent_email = ?, lent_phone = ?, lent_date = ?, due_date = ?, modified_by = ?, modified_at = ? WHERE id = ?",
+      [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null, username, timestamp, id]
     );
     res.json({ message: "Painting updated successfully" });
   } catch (error) {
@@ -143,8 +164,8 @@ app.put("/api/paintings/:id", upload.single("image"), async (req, res) => {
   }
 });
 
-// Delete painting
-app.delete("/api/paintings/:id", async (req, res) => {
+// Delete painting - Protected route
+app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
   const { id } = req.params;
   try {
     // Get painting to delete associated image
