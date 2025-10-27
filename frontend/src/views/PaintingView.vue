@@ -27,7 +27,7 @@
                 📷 {{ imageFileName || 'Kies een afbeelding' }}
               </label>
               <div v-if="imagePreview || form.image_url" class="image-preview">
-                <img :src="imagePreview || `http://localhost:8080${form.image_url}`" alt="Preview" />
+                <img :src="imagePreview || `${API_URL}${form.image_url}`" alt="Preview" />
                 <button type="button" @click="clearImage" class="btn-clear-image">✕</button>
               </div>
             </div>
@@ -158,7 +158,7 @@
           :class="{ lent: painting.lent_to }"
         >
           <div v-if="painting.image_url" class="painting-image">
-            <img :src="`http://localhost:8080${painting.image_url}`" :alt="painting.title" />
+            <img :src="`${API_URL}${painting.image_url}`" :alt="painting.title" />
           </div>
           <div v-else class="painting-image-placeholder">
             🖼️
@@ -194,6 +194,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { API_URL } from '../config.js'
 
 const paintings = ref([])
 const categories = ref([])
@@ -242,7 +243,7 @@ const lentCount = computed(() => paintings.value.filter(p => p.lent_to).length)
 
 async function fetchPaintings() {
   try {
-    const res = await fetch('http://localhost:8080/api/paintings')
+    const res = await fetch(`${API_URL}/api/paintings`)
     paintings.value = await res.json()
   } catch (error) {
     console.error('Error fetching paintings:', error)
@@ -251,7 +252,7 @@ async function fetchPaintings() {
 
 async function fetchCategories() {
   try {
-    const res = await fetch('http://localhost:8080/api/categories')
+    const res = await fetch(`${API_URL}/api/categories`)
     categories.value = await res.json()
     filteredCategories.value = categories.value
   } catch (error) {
@@ -338,7 +339,7 @@ async function addPainting() {
       formData.append('image', imageFile.value)
     }
     
-    const res = await fetch('http://localhost:8080/api/paintings', {
+    const res = await fetch(`${API_URL}/api/paintings`, {
       method: 'POST',
       body: formData
     })
@@ -368,7 +369,7 @@ async function updatePainting() {
       formData.append('image', imageFile.value)
     }
     
-    const res = await fetch(`http://localhost:8080/api/paintings/${editingId.value}`, {
+    const res = await fetch(`${API_URL}/api/paintings/${editingId.value}`, {
       method: 'PUT',
       body: formData
     })
@@ -386,7 +387,7 @@ async function deletePainting(id) {
   if (!confirm('Weet je zeker dat je dit schilderij wilt verwijderen?')) return
   
   try {
-    const res = await fetch(`http://localhost:8080/api/paintings/${id}`, {
+    const res = await fetch(`${API_URL}/api/paintings/${id}`, {
       method: 'DELETE'
     })
     if (res.ok) {
