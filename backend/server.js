@@ -48,7 +48,12 @@ const upload = multer({
 });
 
 app.use(express.json());
-app.use(cors({ origin: true, credentials: true })); // Allow all origins in production
+app.use(cors({ 
+  origin: '*', // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(session({ secret: "secret-key", resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
