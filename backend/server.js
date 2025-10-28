@@ -14,10 +14,10 @@ import { setupAuth, isAuthenticated } from "./routes/auth.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env file only if not in Docker (for local development)
-if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: path.join(__dirname, '..', '.env') });
-}
+// Load .env file for local development
+// In Docker, environment variables are passed directly via docker-compose
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 const app = express();
 
 // Create uploads directory if it doesn't exist
@@ -190,8 +190,9 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
-const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+const HOST = '0.0.0.0'; // Listen on all interfaces for Docker
 app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running on http://${HOST}:${PORT}`);
   console.log(`📝 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`📝 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 });
