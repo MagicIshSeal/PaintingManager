@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-const API_URL = 'http://localhost:8080'
+import { API_URL } from '../config.js'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
