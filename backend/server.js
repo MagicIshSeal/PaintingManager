@@ -14,7 +14,10 @@ import { setupAuth, isAuthenticated } from "./routes/auth.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Load .env file only if not in Docker (for local development)
+if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.join(__dirname, '..', '.env') });
+}
 const app = express();
 
 // Create uploads directory if it doesn't exist
@@ -186,4 +189,9 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
   }
 });
 
-app.listen(8080, () => console.log("✅ Backend running on http://localhost:8080"));
+const PORT = process.env.PORT || 8080;
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+app.listen(PORT, HOST, () => {
+  console.log(`✅ Backend running on http://${HOST}:${PORT}`);
+  console.log(`📝 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+});
