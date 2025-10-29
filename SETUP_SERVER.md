@@ -63,9 +63,12 @@ FRONTEND_URL=http://YOUR_SERVER_IP:5173
 # Session secret - CHANGE THIS to a random string!
 SESSION_SECRET=change-this-to-something-random-and-secure
 
-# Email settings (optional - not currently used)
-EMAIL=youremail@example.com
-PASS=your-email-password
+# Resend API Key (for email functionality)
+# Get your API key from https://resend.com/api-keys
+RESEND_API_KEY=re_your_api_key_here
+
+# Email from address (optional, defaults to onboarding@resend.dev)
+RESEND_FROM_EMAIL=your-verified-email@yourdomain.com
 ```
 
 **Save and exit**: Press `Ctrl+X`, then `Y`, then `Enter`
@@ -124,6 +127,44 @@ http://YOUR_SERVER_IP:5173
 ```
 
 You should see the login page. Login with the credentials you just created!
+
+### 8. (Optional) Test Email Functionality
+
+If you configured the Resend API key, you can test email sending:
+
+1. **Login to the application** at `http://YOUR_SERVER_IP:5173`
+
+2. **Test the email endpoint** using curl (from your local machine or server):
+
+```bash
+# Replace YOUR_SESSION_COOKIE with your actual session cookie
+curl -X POST http://YOUR_SERVER_IP:8080/api/test-email \
+  -H "Cookie: connect.sid=YOUR_SESSION_COOKIE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "your-email@example.com",
+    "subject": "Test Email",
+    "message": "<p>Hello from Painting Manager!</p>"
+  }'
+```
+
+3. **Or test from browser console** (while logged in):
+
+```javascript
+fetch('/api/test-email', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    to: 'your-email@example.com',
+    subject: 'Test Email',
+    message: '<p>Hello from Painting Manager!</p>'
+  })
+})
+.then(res => res.json())
+.then(data => console.log(data));
+```
+
+You should receive an email at the specified address!
 
 ---
 

@@ -11,8 +11,10 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import { setupAuth, isAuthenticated } from "./routes/auth.js";
 import connectSqlite3 from "connect-sqlite3";
+import { Resend } from "resend";
 
 const SQLiteStore = connectSqlite3(session);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -209,6 +211,44 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
     res.json({ message: "Painting deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Test email endpoint - Protected route
+app.post("/api/test-email", isAuthenticated, async (req, res) => {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({ 
+        error: "RESEND_API_KEY not configured in environment variables" 
+      });
+    }
+
+    const { to, subject, message } = req.body;
+    
+    // Use provided email or default to user's email if available
+    const recipientEmail = to || 'maxvaneikeren@gmail.com';
+    const emailSubject = subject || 'Test Email from Painting Manager';
+    const emailMessage = message || '<p>This is a <strong>test email</strong> from your Painting Manager application!</p>';
+
+    const data = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      to: recipientEmail,
+      subject: emailSubject,
+      html: emailMessage
+    });
+
+    console.log('✅ Email sent successfully:', data);
+    res.json({ 
+      success: true, 
+      message: "Email sent successfully!", 
+      data: data 
+    });
+  } catch (error) {
+    console.error('❌ Email sending failed:', error);
+    res.status(500).json({ 
+      error: error.message,
+      details: error.response?.body || 'No additional details'
+    });
   }
 });
 
