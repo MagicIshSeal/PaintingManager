@@ -13,15 +13,23 @@ import { setupAuth, isAuthenticated } from "./routes/auth.js";
 import connectSqlite3 from "connect-sqlite3";
 import { Resend } from "resend";
 
-const SQLiteStore = connectSqlite3(session);
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env file for local development
+// Load .env file for local development FIRST
 // In Docker, environment variables are passed directly via docker-compose
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+const SQLiteStore = connectSqlite3(session);
+
+// Initialize Resend only if API key is provided
+let resend = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+  console.log('✅ Resend email client initialized');
+} else {
+  console.log('⚠️  RESEND_API_KEY not set - email functionality disabled');
+}
 
 const app = express();
 
@@ -217,9 +225,9 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
 // Test email endpoint - Protected route
 app.post("/api/test-email", isAuthenticated, async (req, res) => {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    if (!resend) {
       return res.status(500).json({ 
-        error: "RESEND_API_KEY not configured in environment variables" 
+        error: "Email service not configured. Please set RESEND_API_KEY in your .env file." 
       });
     }
 

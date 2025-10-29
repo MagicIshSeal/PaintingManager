@@ -8,10 +8,10 @@ services:
       - ./backend/uploads:/app/uploads
     environment:
       - NODE_ENV=production
-      - EMAIL=${EMAIL}
-      - PASS=${PASS}
       - SESSION_SECRET=${SESSION_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
     restart: unless-stopped
 
   frontend:
