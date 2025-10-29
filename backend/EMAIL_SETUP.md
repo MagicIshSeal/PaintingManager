@@ -41,8 +41,10 @@ To use a custom "from" address:
 Open browser console and run:
 
 ```javascript
-fetch('/api/test-email', {
+// Make sure to use the backend API URL (port 8080)
+fetch('http://85.10.134.143:8080/api/test-email', {
   method: 'POST',
+  credentials: 'include', // Important: include cookies for authentication
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     to: 'your-email@example.com',
@@ -53,6 +55,8 @@ fetch('/api/test-email', {
 .then(res => res.json())
 .then(data => console.log(data));
 ```
+
+> **Important**: The request must go to the **backend API port (8080)**, not the frontend port (5173). Use `credentials: 'include'` to send your session cookie for authentication.
 
 ### Method 2: cURL (from terminal)
 
@@ -107,15 +111,74 @@ All parameters are optional:
 - API key is stored in environment variables (never in code)
 - Emails are sent server-side only (API key never exposed to client)
 
+## 🎨 Automatic Lending Notifications
+
+The application automatically sends email notifications when a painting is lent out!
+
+### How It Works
+
+When you create or update a painting with lending information:
+- **Name** (`lent_to`) is filled in
+- **Email** (`lent_email`) is provided
+- The painting wasn't previously lent (for updates)
+
+An automatic email is sent to the borrower with:
+- ✅ Painting title and details
+- ✅ Category and location
+- ✅ Lending date
+- ✅ **Due date** (highlighted)
+- ✅ Borrower's contact information
+- ✅ Professional HTML-formatted email
+
+### Email Content Example
+
+The borrower receives a beautifully formatted email with:
+
+```
+🎨 Painting Lent Confirmation
+
+Hello [Borrower Name],
+
+This email confirms that you have borrowed the following painting:
+
+📋 Painting Details
+Title: [Painting Title]
+Category: [Category]
+Location: [Address]
+Lent Date: [Date]
+Due Date: [Return Date] ⚠️
+Your Phone: [Phone]
+
+⚠️ Important Reminder
+Please return the painting by [Due Date].
+Take good care of the artwork!
+```
+
+### Behavior Notes
+
+- Emails are only sent when a painting is **newly lent** (not already lent)
+- If email sending fails, the painting update still succeeds (error is logged)
+- No email is sent if `RESEND_API_KEY` is not configured
+- You can see email send confirmations in the backend logs
+
 ## 🚀 Production Usage
 
-For production email features:
+The email system is production-ready with:
 
-1. Create dedicated email functions in `backend/utils/email.js`
-2. Use environment variables for all email templates
-3. Consider rate limiting for email endpoints
-4. Log all email sends for auditing
-5. Handle bounces and errors appropriately
+1. ✅ Professional HTML email templates in `backend/utils/email.js`
+2. ✅ Automatic notifications on lending events
+3. ✅ Error handling (email failures don't break the app)
+4. ✅ Environment variable configuration
+5. ✅ Console logging for debugging
+
+### Future Enhancements
+
+Consider adding:
+- Return reminder emails (due date approaching)
+- Overdue notifications
+- Return confirmation emails
+- Email preferences for borrowers
+- Rate limiting for email endpoints
 
 ## 📚 Resend Documentation
 

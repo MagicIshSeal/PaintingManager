@@ -12,6 +12,7 @@ import fs from "fs";
 import { setupAuth, isAuthenticated } from "./routes/auth.js";
 import connectSqlite3 from "connect-sqlite3";
 import { Resend } from "resend";
+import { sendLendingNotification } from "./utils/email.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -160,6 +161,29 @@ app.post("/api/paintings", isAuthenticated, upload.single("image"), async (req, 
       "INSERT INTO paintings (title, address, category, image_url, lent_to, lent_email, lent_phone, lent_date, due_date, created_by, created_at, modified_by, modified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null, username, timestamp, username, timestamp]
     );
+    
+    // If painting is created with lending info, send notification email
+    if (lent_to && lent_email && resend) {
+      try {
+        const paintingDetails = {
+          title,
+          lent_to,
+          lent_email,
+          lent_phone,
+          lent_date,
+          due_date,
+          address,
+          category
+        };
+        
+        await sendLendingNotification(resend, paintingDetails);
+        console.log(`✅ Lending notification sent to ${lent_email} for new painting: ${title}`);
+      } catch (emailError) {
+        // Log error but don't fail the creation
+        console.error('❌ Failed to send lending notification email:', emailError.message);
+      }
+    }
+    
     res.status(201).json({ id: result.lastID, message: "Painting added successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -174,8 +198,8 @@ app.put("/api/paintings/:id", isAuthenticated, upload.single("image"), async (re
   const timestamp = new Date().toISOString();
   
   try {
-    // Get existing painting to check for old image
-    const existing = await db.get("SELECT image_url FROM paintings WHERE id = ?", [id]);
+    // Get existing painting to check for old image and lending status
+    const existing = await db.get("SELECT image_url, lent_to, lent_email FROM paintings WHERE id = ?", [id]);
     
     let image_url = existing?.image_url;
     
@@ -190,10 +214,38 @@ app.put("/api/paintings/:id", isAuthenticated, upload.single("image"), async (re
       image_url = `/uploads/${req.file.filename}`;
     }
     
+    // Update the painting
     await db.run(
       "UPDATE paintings SET title = ?, address = ?, category = ?, image_url = ?, lent_to = ?, lent_email = ?, lent_phone = ?, lent_date = ?, due_date = ?, modified_by = ?, modified_at = ? WHERE id = ?",
       [title, address || null, category || null, image_url, lent_to || null, lent_email || null, lent_phone || null, lent_date || null, due_date || null, username, timestamp, id]
     );
+    
+    // Check if painting is being newly lent out (wasn't lent before, now is)
+    const wasNotLent = !existing?.lent_to || !existing?.lent_email;
+    const isNowLent = lent_to && lent_email;
+    
+    if (wasNotLent && isNowLent && resend) {
+      try {
+        // Send lending notification email
+        const paintingDetails = {
+          title,
+          lent_to,
+          lent_email,
+          lent_phone,
+          lent_date,
+          due_date,
+          address,
+          category
+        };
+        
+        await sendLendingNotification(resend, paintingDetails);
+        console.log(`✅ Lending notification sent to ${lent_email} for painting: ${title}`);
+      } catch (emailError) {
+        // Log error but don't fail the update
+        console.error('❌ Failed to send lending notification email:', emailError.message);
+      }
+    }
+    
     res.json({ message: "Painting updated successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
