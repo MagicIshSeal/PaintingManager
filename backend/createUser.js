@@ -2,6 +2,12 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { User } from "./models/user.js";
 import readline from "readline";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -16,11 +22,26 @@ function question(prompt) {
 
 async function createUser() {
   try {
+    // Create data directory if it doesn't exist
+    const dataDir = path.join(__dirname, "data");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
     // Open database
     const db = await open({
-      filename: "./database.sqlite",
+      filename: path.join(dataDir, "database.sqlite"),
       driver: sqlite3.Database,
     });
+
+    // Ensure users table exists
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT
+      )
+    `);
 
     console.log("\n🎨 Create Admin User for Schilderijen Beheer\n");
 

@@ -10,6 +10,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import { setupAuth, isAuthenticated } from "./routes/auth.js";
+import connectSqlite3 from "connect-sqlite3";
+
+const SQLiteStore = connectSqlite3(session);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,8 +23,12 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 
-// Create uploads directory if it doesn't exist
+// Create data and uploads directories if they don't exist
+const dataDir = path.join(__dirname, "data");
 const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -59,6 +66,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(session({ 
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: dataDir
+  }),
   secret: process.env.SESSION_SECRET || "secret-key-change-in-production", 
   resave: false, 
   saveUninitialized: false,
@@ -74,31 +85,43 @@ app.use(passport.session());
 // Serve uploaded images
 app.use("/uploads", express.static(uploadsDir));
 
-// Database
-const db = await open({ filename: "./database.sqlite", driver: sqlite3.Database });
-await db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE,
-  password TEXT
-);
-CREATE TABLE IF NOT EXISTS paintings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT,
-  address TEXT,
-  category TEXT,
-  image_url TEXT,
-  lent_to TEXT,
-  lent_email TEXT,
-  lent_phone TEXT,
-  lent_date TEXT,
-  due_date TEXT,
-  created_by TEXT,
-  created_at TEXT,
-  modified_by TEXT,
-  modified_at TEXT
-);
-`);
+// Database initialization with error handling
+let db;
+try {
+  db = await open({ 
+    filename: path.join(dataDir, "database.sqlite"), 
+    driver: sqlite3.Database 
+  });
+  
+  await db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT
+  );
+  CREATE TABLE IF NOT EXISTS paintings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    address TEXT,
+    category TEXT,
+    image_url TEXT,
+    lent_to TEXT,
+    lent_email TEXT,
+    lent_phone TEXT,
+    lent_date TEXT,
+    due_date TEXT,
+    created_by TEXT,
+    created_at TEXT,
+    modified_by TEXT,
+    modified_at TEXT
+  );
+  `);
+  
+  console.log('✅ Database initialized successfully');
+} catch (error) {
+  console.error('❌ Database initialization failed:', error);
+  process.exit(1);
+}
 
 // Setup authentication routes
 setupAuth(app, db);
@@ -191,8 +214,43 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
 
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0'; // Listen on all interfaces for Docker
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`✅ Backend running on http://${HOST}:${PORT}`);
   console.log(`📝 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`📝 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log('\n🔄 Shutting down gracefully...');
+  server.close(async () => {
+    console.log('📡 HTTP server closed');
+    try {
+      await db.close();
+      console.log('💾 Database connection closed');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error closing database:', error);
+      process.exit(1);
+    }
+  });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('⚠️  Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
+// Multer error handling
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  } else if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
 });
