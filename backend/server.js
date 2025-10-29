@@ -13,6 +13,7 @@ import { setupAuth, isAuthenticated } from "./routes/auth.js";
 import connectSqlite3 from "connect-sqlite3";
 import { Resend } from "resend";
 import { sendLendingNotification } from "./utils/email.js";
+import { startScheduler } from "./utils/scheduler.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,6 +137,13 @@ try {
 
 // Setup authentication routes
 setupAuth(app, db);
+
+// Start email scheduler for reminders and overdue notifications
+if (resend) {
+  startScheduler(db, resend);
+} else {
+  console.log('⚠️  Email scheduler not started (RESEND_API_KEY not configured)');
+}
 
 // Get all paintings - Protected route
 app.get("/api/paintings", isAuthenticated, async (req, res) => {
