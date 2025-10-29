@@ -212,6 +212,17 @@ app.delete("/api/paintings/:id", isAuthenticated, async (req, res) => {
   }
 });
 
+// Multer and general error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error caught:', err);
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  } else if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
+});
+
 const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0'; // Listen on all interfaces for Docker
 const server = app.listen(PORT, HOST, () => {
@@ -244,13 +255,3 @@ const shutdown = async () => {
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
-
-// Multer error handling
-app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    return res.status(400).json({ error: `Upload error: ${err.message}` });
-  } else if (err) {
-    return res.status(400).json({ error: err.message });
-  }
-  next();
-});

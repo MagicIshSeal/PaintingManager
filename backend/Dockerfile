@@ -11,11 +11,7 @@ RUN npm ci --only=production
 COPY . .
 
 # Create directories for data and uploads
-RUN mkdir -p /app/data /app/uploads && \
-    chown -R node:node /app
-
-# Switch to non-root user
-USER node
+RUN mkdir -p /app/data /app/uploads
 
 EXPOSE 8080
 CMD ["node", "server.js"]
