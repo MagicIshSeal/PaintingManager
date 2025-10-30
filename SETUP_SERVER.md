@@ -60,6 +60,9 @@ VITE_API_URL=http://YOUR_SERVER_IP:8080
 # Frontend URL (used by backend CORS)
 FRONTEND_URL=http://YOUR_SERVER_IP:5173
 
+# Backend URL (used for email images - must be accessible externally)
+BACKEND_URL=http://YOUR_SERVER_IP:8080
+
 # Session secret - CHANGE THIS to a random string!
 SESSION_SECRET=change-this-to-something-random-and-secure
 

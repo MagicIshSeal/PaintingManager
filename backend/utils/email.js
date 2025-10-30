@@ -13,10 +13,12 @@
  * @param {string} painting.address - Location of the painting
  * @param {string} painting.category - Category of the painting
  * @param {string} painting.lent_phone - Phone number of the borrower
+ * @param {string} painting.image_url - Image URL of the painting
+ * @param {string} baseUrl - Base URL for constructing full image URLs
  * @returns {string} HTML email content
  */
-export function generateLendingEmail(painting) {
-  const { title, lent_to, lent_date, due_date, address, category, lent_phone } = painting;
+export function generateLendingEmail(painting, baseUrl = '') {
+  const { title, lent_to, lent_date, due_date, address, category, lent_phone, image_url } = painting;
   
   const formattedLentDate = lent_date ? new Date(lent_date).toLocaleDateString('nl-NL', { 
     weekday: 'long', 
@@ -31,6 +33,8 @@ export function generateLendingEmail(painting) {
     month: 'long', 
     day: 'numeric' 
   }) : 'Niet gespecificeerd';
+  
+  const fullImageUrl = image_url ? `${baseUrl}${image_url}` : null;
 
   return `
 <!DOCTYPE html>
@@ -64,6 +68,18 @@ export function generateLendingEmail(painting) {
       border-radius: 0 0 10px 10px;
       border: 1px solid #e5e7eb;
       border-top: none;
+    }
+    .painting-image {
+      width: 100%;
+      max-height: 400px;
+      overflow: hidden;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .painting-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .painting-info {
       background: white;
@@ -120,6 +136,12 @@ export function generateLendingEmail(painting) {
     <p>Beste <strong>${lent_to}</strong>,</p>
     
     <p>Deze e-mail bevestigt dat je het volgende schilderij hebt geleend uit onze collectie:</p>
+    
+    ${fullImageUrl ? `
+    <div class="painting-image">
+      <img src="${fullImageUrl}" alt="${title}" />
+    </div>
+    ` : ''}
     
     <div class="painting-info">
       <h2 style="margin-top: 0; color: #667eea;">📋 Schilderij Details</h2>
@@ -181,8 +203,8 @@ export function generateLendingEmail(painting) {
 /**
  * Generate HTML email for 1-week reminder before due date (Dutch)
  */
-export function generateReminderEmail(painting) {
-  const { title, lent_to, due_date, address, category, lent_phone } = painting;
+export function generateReminderEmail(painting, baseUrl = '') {
+  const { title, lent_to, due_date, address, category, lent_phone, image_url } = painting;
   
   const formattedDueDate = due_date ? new Date(due_date).toLocaleDateString('nl-NL', { 
     weekday: 'long', 
@@ -192,6 +214,7 @@ export function generateReminderEmail(painting) {
   }) : 'Niet gespecificeerd';
   
   const daysRemaining = due_date ? Math.ceil((new Date(due_date) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+  const fullImageUrl = image_url ? `${baseUrl}${image_url}` : null;
 
   return `
 <!DOCTYPE html>
@@ -225,6 +248,18 @@ export function generateReminderEmail(painting) {
       border-radius: 0 0 10px 10px;
       border: 1px solid #e5e7eb;
       border-top: none;
+    }
+    .painting-image {
+      width: 100%;
+      max-height: 400px;
+      overflow: hidden;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .painting-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .painting-info {
       background: white;
@@ -296,6 +331,12 @@ export function generateReminderEmail(painting) {
       Nog ${daysRemaining} dag${daysRemaining !== 1 ? 'en' : ''} tot inleverdatum
     </div>
     
+    ${fullImageUrl ? `
+    <div class="painting-image">
+      <img src="${fullImageUrl}" alt="${title}" />
+    </div>
+    ` : ''}
+    
     <div class="painting-info">
       <h2 style="margin-top: 0; color: #f59e0b;">📋 Schilderij Details</h2>
       
@@ -351,8 +392,8 @@ export function generateReminderEmail(painting) {
 /**
  * Generate HTML email for overdue painting notification (Dutch)
  */
-export function generateOverdueEmail(painting) {
-  const { title, lent_to, due_date, address, category, lent_phone } = painting;
+export function generateOverdueEmail(painting, baseUrl = '') {
+  const { title, lent_to, due_date, address, category, lent_phone, image_url } = painting;
   
   const formattedDueDate = due_date ? new Date(due_date).toLocaleDateString('nl-NL', { 
     weekday: 'long', 
@@ -362,6 +403,7 @@ export function generateOverdueEmail(painting) {
   }) : 'Niet gespecificeerd';
   
   const daysOverdue = due_date ? Math.ceil((new Date() - new Date(due_date)) / (1000 * 60 * 60 * 24)) : 0;
+  const fullImageUrl = image_url ? `${baseUrl}${image_url}` : null;
 
   return `
 <!DOCTYPE html>
@@ -395,6 +437,18 @@ export function generateOverdueEmail(painting) {
       border-radius: 0 0 10px 10px;
       border: 1px solid #e5e7eb;
       border-top: none;
+    }
+    .painting-image {
+      width: 100%;
+      max-height: 400px;
+      overflow: hidden;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .painting-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .painting-info {
       background: white;
@@ -467,6 +521,12 @@ export function generateOverdueEmail(painting) {
       ${daysOverdue} dag${daysOverdue !== 1 ? 'en' : ''} te laat
     </div>
     
+    ${fullImageUrl ? `
+    <div class="painting-image">
+      <img src="${fullImageUrl}" alt="${title}" />
+    </div>
+    ` : ''}
+    
     <div class="painting-info">
       <h2 style="margin-top: 0; color: #dc2626;">📋 Schilderij Details</h2>
       
@@ -524,9 +584,10 @@ export function generateOverdueEmail(painting) {
  * @param {Object} resend - Resend client instance
  * @param {Object} painting - The painting details
  * @param {string} painting.lent_email - Email address of the borrower
+ * @param {string} baseUrl - Base URL for images (e.g., http://85.10.134.143:8080)
  * @returns {Promise<Object>} Resend API response
  */
-export async function sendLendingNotification(resend, painting) {
+export async function sendLendingNotification(resend, painting, baseUrl = '') {
   if (!resend) {
     throw new Error('Email service not configured');
   }
@@ -535,7 +596,7 @@ export async function sendLendingNotification(resend, painting) {
     throw new Error('No email address provided for borrower');
   }
 
-  const htmlContent = generateLendingEmail(painting);
+  const htmlContent = generateLendingEmail(painting, baseUrl);
   
   return await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
@@ -549,9 +610,10 @@ export async function sendLendingNotification(resend, painting) {
  * Send a reminder email (1 week before due date)
  * @param {Object} resend - Resend client instance
  * @param {Object} painting - The painting details
+ * @param {string} baseUrl - Base URL for images
  * @returns {Promise<Object>} Resend API response
  */
-export async function sendReminderNotification(resend, painting) {
+export async function sendReminderNotification(resend, painting, baseUrl = '') {
   if (!resend) {
     throw new Error('Email service not configured');
   }
@@ -560,7 +622,7 @@ export async function sendReminderNotification(resend, painting) {
     throw new Error('No email address provided for borrower');
   }
 
-  const htmlContent = generateReminderEmail(painting);
+  const htmlContent = generateReminderEmail(painting, baseUrl);
   
   return await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
@@ -574,9 +636,10 @@ export async function sendReminderNotification(resend, painting) {
  * Send an overdue notification email
  * @param {Object} resend - Resend client instance
  * @param {Object} painting - The painting details
+ * @param {string} baseUrl - Base URL for images
  * @returns {Promise<Object>} Resend API response
  */
-export async function sendOverdueNotification(resend, painting) {
+export async function sendOverdueNotification(resend, painting, baseUrl = '') {
   if (!resend) {
     throw new Error('Email service not configured');
   }
@@ -585,7 +648,7 @@ export async function sendOverdueNotification(resend, painting) {
     throw new Error('No email address provided for borrower');
   }
 
-  const htmlContent = generateOverdueEmail(painting);
+  const htmlContent = generateOverdueEmail(painting, baseUrl);
   
   return await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',

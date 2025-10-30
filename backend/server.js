@@ -33,6 +33,9 @@ if (process.env.RESEND_API_KEY) {
   console.log('⚠️  RESEND_API_KEY not set - email functionality disabled');
 }
 
+// Base URL for email images (defaults to backend URL on port 8080)
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
+
 const app = express();
 
 // Create data and uploads directories if they don't exist
@@ -140,7 +143,7 @@ setupAuth(app, db);
 
 // Start email scheduler for reminders and overdue notifications
 if (resend) {
-  startScheduler(db, resend);
+  startScheduler(db, resend, BACKEND_URL);
 } else {
   console.log('⚠️  Email scheduler not started (RESEND_API_KEY not configured)');
 }
@@ -181,10 +184,11 @@ app.post("/api/paintings", isAuthenticated, upload.single("image"), async (req, 
           lent_date,
           due_date,
           address,
-          category
+          category,
+          image_url
         };
         
-        await sendLendingNotification(resend, paintingDetails);
+        await sendLendingNotification(resend, paintingDetails, BACKEND_URL);
         console.log(`✅ Lending notification sent to ${lent_email} for new painting: ${title}`);
       } catch (emailError) {
         // Log error but don't fail the creation
@@ -243,10 +247,11 @@ app.put("/api/paintings/:id", isAuthenticated, upload.single("image"), async (re
           lent_date,
           due_date,
           address,
-          category
+          category,
+          image_url
         };
         
-        await sendLendingNotification(resend, paintingDetails);
+        await sendLendingNotification(resend, paintingDetails, BACKEND_URL);
         console.log(`✅ Lending notification sent to ${lent_email} for painting: ${title}`);
       } catch (emailError) {
         // Log error but don't fail the update

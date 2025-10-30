@@ -9,8 +9,9 @@ import { sendReminderNotification, sendOverdueNotification } from './email.js';
  * Check for paintings that need reminder emails (7 days before due date)
  * @param {Object} db - Database instance
  * @param {Object} resend - Resend client instance
+ * @param {string} baseUrl - Base URL for images in emails
  */
-async function checkReminders(db, resend) {
+async function checkReminders(db, resend, baseUrl = '') {
   if (!resend) {
     console.log('⚠️  Resend not configured, skipping reminder check');
     return;
@@ -38,7 +39,7 @@ async function checkReminders(db, resend) {
       
       if (daysDifference === 7) {
         try {
-          await sendReminderNotification(resend, painting);
+          await sendReminderNotification(resend, painting, baseUrl);
           console.log(`✅ Reminder email sent to ${painting.lent_email} for painting: ${painting.title}`);
           remindersSent++;
         } catch (error) {
@@ -59,8 +60,9 @@ async function checkReminders(db, resend) {
  * Check for paintings that are overdue
  * @param {Object} db - Database instance
  * @param {Object} resend - Resend client instance
+ * @param {string} baseUrl - Base URL for images in emails
  */
-async function checkOverdue(db, resend) {
+async function checkOverdue(db, resend, baseUrl = '') {
   if (!resend) {
     console.log('⚠️  Resend not configured, skipping overdue check');
     return;
@@ -88,7 +90,7 @@ async function checkOverdue(db, resend) {
         // Send overdue email every 7 days (on days 1, 7, 14, 21, etc.)
         if (daysOverdue === 1 || daysOverdue % 7 === 0) {
           try {
-            await sendOverdueNotification(resend, painting);
+            await sendOverdueNotification(resend, painting, baseUrl);
             console.log(`🚨 Overdue email sent to ${painting.lent_email} for painting: ${painting.title} (${daysOverdue} days overdue)`);
             overduesSent++;
           } catch (error) {
@@ -110,11 +112,12 @@ async function checkOverdue(db, resend) {
  * Run all scheduled checks
  * @param {Object} db - Database instance
  * @param {Object} resend - Resend client instance
+ * @param {string} baseUrl - Base URL for images in emails
  */
-export async function runScheduledChecks(db, resend) {
+export async function runScheduledChecks(db, resend, baseUrl = '') {
   console.log('🔍 Running scheduled email checks...');
-  await checkReminders(db, resend);
-  await checkOverdue(db, resend);
+  await checkReminders(db, resend, baseUrl);
+  await checkOverdue(db, resend, baseUrl);
   console.log('✅ Scheduled checks complete');
 }
 
@@ -122,12 +125,13 @@ export async function runScheduledChecks(db, resend) {
  * Start the scheduler (runs daily at 9:00 AM)
  * @param {Object} db - Database instance
  * @param {Object} resend - Resend client instance
+ * @param {string} baseUrl - Base URL for images in emails
  */
-export function startScheduler(db, resend) {
+export function startScheduler(db, resend, baseUrl = '') {
   console.log('📅 Email scheduler started');
   
   // Run immediately on startup
-  runScheduledChecks(db, resend);
+  runScheduledChecks(db, resend, baseUrl);
   
   // Calculate time until next 9:00 AM
   const now = new Date();
@@ -145,11 +149,11 @@ export function startScheduler(db, resend) {
   
   // Schedule first run at 9 AM
   setTimeout(() => {
-    runScheduledChecks(db, resend);
+    runScheduledChecks(db, resend, baseUrl);
     
     // Then run every 24 hours
     setInterval(() => {
-      runScheduledChecks(db, resend);
+      runScheduledChecks(db, resend, baseUrl);
     }, 24 * 60 * 60 * 1000);
   }, timeUntilNext9AM);
 }
