@@ -1,117 +1,15 @@
 <template>
   <div class="painting-manager">
-    <!-- Add New Painting Form -->
-    <div class="add-painting-section">
-      <h2>{{ editingId ? 'Schilderij Bewerken' : 'Nieuw Schilderij Toevoegen' }}</h2>
-      <form @submit.prevent="editingId ? updatePainting() : addPainting()" class="painting-form">
-        <div class="form-row">
-          <div class="form-group full-width">
-            <label>Titel *</label>
-            <input v-model="form.title" type="text" placeholder="bijv. De Sterrennacht" required />
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group full-width">
-            <label>Afbeelding</label>
-            <div class="image-upload-container">
-              <input 
-                ref="fileInput"
-                type="file" 
-                @change="handleImageSelect" 
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                class="file-input"
-                id="image-upload"
-              />
-              <label for="image-upload" class="file-label">
-                📷 {{ imageFileName || 'Kies een afbeelding' }}
-              </label>
-              <div v-if="imagePreview || form.image_url" class="image-preview">
-                <img :src="imagePreview || `${API_URL}${form.image_url}`" alt="Preview" />
-                <button type="button" @click="clearImage" class="btn-clear-image">✕</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group full-width">
-            <label>Adres</label>
-            <input v-model="form.address" type="text" placeholder="bijv. Kerkstraat 123, 1234 AB Amsterdam" />
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label>Categorie</label>
-            <div class="category-input-wrapper">
-              <input 
-                v-model="form.category" 
-                type="text" 
-                list="categories" 
-                placeholder="Selecteer of typ nieuwe categorie"
-                @focus="showCategoryDropdown = true"
-                @blur="hideCategoryDropdown"
-                @input="filterCategories"
-                class="category-input"
-              />
-              <div v-if="showCategoryDropdown && filteredCategories.length > 0" class="category-dropdown">
-                <div 
-                  v-for="cat in filteredCategories" 
-                  :key="cat" 
-                  class="category-option"
-                  @mousedown.prevent="selectCategory(cat)"
-                >
-                  {{ cat }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Uitgeleend Aan</label>
-            <input v-model="form.lent_to" type="text" placeholder="Naam lener (leeg laten indien beschikbaar)" @input="handleLentToChange" />
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label>Email Lener</label>
-            <input v-model="form.lent_email" type="email" placeholder="email@voorbeeld.nl" :disabled="!form.lent_to" />
-          </div>
-          <div class="form-group">
-            <label>Telefoon Lener</label>
-            <input v-model="form.lent_phone" type="tel" placeholder="06-12345678" :disabled="!form.lent_to" />
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Uitgeleend op Datum</label>
-            <input v-model="form.lent_date" type="date" :disabled="!form.lent_to" />
-          </div>
-          <div class="form-group">
-            <label>Retour Datum</label>
-            <input v-model="form.due_date" type="date" :disabled="!form.lent_to" />
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group form-actions">
-            <button type="submit" class="btn btn-primary">
-              {{ editingId ? 'Bijwerken' : 'Toevoegen' }}
-            </button>
-            <button v-if="editingId" type="button" @click="cancelEdit" class="btn btn-secondary">
-              Annuleren
-            </button>
-          </div>
-        </div>
-      </form>
+    <!-- Header with Add Button -->
+    <div class="header-section">
+      <h2>Schilderijen Collectie ({{ paintings.length }})</h2>
+      <button @click="showAddModal = true" class="btn btn-add">
+        ➕ Nieuw Schilderij
+      </button>
     </div>
 
-    <!-- Paintings List -->
+    <!-- Paintings Overview -->
     <div class="paintings-section">
-      <h2>Schilderijen Collectie ({{ paintings.length }})</h2>
-      
       <!-- Filter Tabs -->
       <div class="filter-tabs">
         <button 
@@ -178,36 +76,247 @@
             </span>
           </div>
           
-          <p v-if="painting.address" class="address"><strong>📍 Adres:</strong> {{ painting.address }}</p>
+          <p v-if="painting.address" class="address"><strong>📍 Locatie:</strong> {{ painting.address }}</p>
           <p v-if="painting.category" class="category"><strong>Categorie:</strong> {{ painting.category }}</p>
           
           <div v-if="painting.lent_to" class="lending-info">
             <p><strong>Uitgeleend aan:</strong> {{ painting.lent_to }}</p>
-            <p v-if="painting.lent_email"><strong>📧 Email:</strong> <a :href="'mailto:' + painting.lent_email">{{ painting.lent_email }}</a></p>
-            <p v-if="painting.lent_phone"><strong>📞 Telefoon:</strong> <a :href="'tel:' + painting.lent_phone">{{ painting.lent_phone }}</a></p>
-            <p v-if="painting.lent_date"><strong>Sinds:</strong> {{ formatDate(painting.lent_date) }}</p>
             <p v-if="painting.due_date"><strong>Retour:</strong> {{ formatDate(painting.due_date) }}</p>
             <p v-if="isOverdue(painting)" class="overdue-warning">
               ⚠️ {{ getDaysOverdue(painting) }} dagen te laat!
             </p>
           </div>
           
-          <div class="metadata-info">
-            <p v-if="painting.created_by" class="metadata-item">
-              <strong>📝 Aangemaakt:</strong> {{ painting.created_by }} 
-              <span v-if="painting.created_at" class="timestamp">{{ formatDateTime(painting.created_at) }}</span>
-            </p>
-            <p v-if="painting.modified_by && painting.modified_by !== painting.created_by || (painting.modified_at && painting.modified_at !== painting.created_at)" class="metadata-item">
-              <strong>🔄 Gewijzigd:</strong> {{ painting.modified_by }} 
-              <span v-if="painting.modified_at" class="timestamp">{{ formatDateTime(painting.modified_at) }}</span>
-            </p>
-          </div>
-          
           <div class="card-actions">
-            <button @click="startEdit(painting)" class="btn btn-edit">✏️ Bewerken</button>
-            <button @click="deletePainting(painting.id)" class="btn btn-delete">🗑️ Verwijderen</button>
+            <button 
+              v-if="!painting.lent_to" 
+              @click="openLendModal(painting)" 
+              class="btn btn-lend"
+            >
+              � Uitlenen
+            </button>
+            <button 
+              v-else 
+              @click="openManageLendModal(painting)" 
+              class="btn btn-manage-lend"
+            >
+              📋 Uitlening Beheren
+            </button>
+            <button @click="openEditModal(painting)" class="btn btn-edit">
+              ⚙️
+            </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div v-if="showAddModal || showEditModal" class="modal-overlay" @click="closeModals">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>{{ showEditModal ? 'Schilderij Bewerken' : 'Nieuw Schilderij Toevoegen' }}</h2>
+          <button @click="closeModals" class="btn-close">✕</button>
+        </div>
+        <form @submit.prevent="showEditModal ? updatePainting() : addPainting()" class="painting-form">
+          <div class="form-group">
+            <label>Titel *</label>
+            <input v-model="form.title" type="text" placeholder="bijv. De Sterrennacht" required />
+          </div>
+
+          <div class="form-group">
+            <label>Afbeelding</label>
+            <div class="image-upload-container">
+              <input 
+                ref="fileInput"
+                type="file" 
+                @change="handleImageSelect" 
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                class="file-input"
+                id="image-upload"
+              />
+              <label for="image-upload" class="file-label">
+                📷 {{ imageFileName || 'Kies een afbeelding' }}
+              </label>
+              <div v-if="imagePreview || form.image_url" class="image-preview">
+                <img :src="imagePreview || `${API_URL}${form.image_url}`" alt="Preview" />
+                <button type="button" @click="clearImage" class="btn-clear-image">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Locatie / Adres</label>
+            <input v-model="form.address" type="text" placeholder="bijv. Kerkstraat 123, Amsterdam" />
+          </div>
+          
+          <div class="form-group">
+            <label>Categorie</label>
+            <div class="category-input-wrapper">
+              <input 
+                v-model="form.category" 
+                type="text" 
+                placeholder="Selecteer of typ nieuwe categorie"
+                @focus="showCategoryDropdown = true"
+                @blur="hideCategoryDropdown"
+                @input="filterCategories"
+                class="category-input"
+              />
+              <div v-if="showCategoryDropdown && filteredCategories.length > 0" class="category-dropdown">
+                <div 
+                  v-for="cat in filteredCategories" 
+                  :key="cat" 
+                  class="category-option"
+                  @mousedown.prevent="selectCategory(cat)"
+                >
+                  {{ cat }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">
+              {{ showEditModal ? 'Opslaan' : 'Toevoegen' }}
+            </button>
+            <button v-if="showEditModal" type="button" @click="confirmDelete" class="btn btn-delete">
+              🗑️ Verwijderen
+            </button>
+            <button type="button" @click="closeModals" class="btn btn-secondary">
+              Annuleren
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lend Out Modal -->
+    <div v-if="showLendModal" class="modal-overlay" @click="closeLendModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>📤 Schilderij Uitlenen</h2>
+          <button @click="closeLendModal" class="btn-close">✕</button>
+        </div>
+        <div class="painting-preview">
+          <h3>{{ currentPainting?.title }}</h3>
+          <div v-if="currentPainting?.image_url" class="preview-image">
+            <img :src="`${API_URL}${currentPainting.image_url}`" :alt="currentPainting.title" />
+          </div>
+        </div>
+        <form @submit.prevent="lendPainting" class="lending-form">
+          <div class="form-group">
+            <label>Uitgeleend Aan *</label>
+            <input v-model="lendForm.lent_to" type="text" placeholder="Naam van de lener" required />
+          </div>
+          
+          <div class="form-group">
+            <label>Email</label>
+            <input v-model="lendForm.lent_email" type="email" placeholder="email@voorbeeld.nl" />
+          </div>
+          
+          <div class="form-group">
+            <label>Telefoon</label>
+            <input v-model="lendForm.lent_phone" type="tel" placeholder="06-12345678" />
+          </div>
+
+          <div class="form-group">
+            <label>Uitgeleend op Datum</label>
+            <input v-model="lendForm.lent_date" type="date" required />
+          </div>
+          
+          <div class="form-group">
+            <label>Retour Datum</label>
+            <input v-model="lendForm.due_date" type="date" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">
+              Uitlenen
+            </button>
+            <button type="button" @click="closeLendModal" class="btn btn-secondary">
+              Annuleren
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Manage Lending Modal -->
+    <div v-if="showManageLendModal" class="modal-overlay" @click="closeManageLendModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>📋 Uitlening Beheren</h2>
+          <button @click="closeManageLendModal" class="btn-close">✕</button>
+        </div>
+        <div class="painting-preview">
+          <h3>{{ currentPainting?.title }}</h3>
+          <div v-if="currentPainting?.image_url" class="preview-image">
+            <img :src="`${API_URL}${currentPainting.image_url}`" :alt="currentPainting.title" />
+          </div>
+        </div>
+        <div class="lending-details">
+          <div class="detail-row">
+            <strong>Uitgeleend aan:</strong>
+            <span>{{ currentPainting?.lent_to }}</span>
+          </div>
+          <div v-if="currentPainting?.lent_email" class="detail-row">
+            <strong>📧 Email:</strong>
+            <a :href="'mailto:' + currentPainting.lent_email">{{ currentPainting.lent_email }}</a>
+          </div>
+          <div v-if="currentPainting?.lent_phone" class="detail-row">
+            <strong>� Telefoon:</strong>
+            <a :href="'tel:' + currentPainting.lent_phone">{{ currentPainting.lent_phone }}</a>
+          </div>
+          <div v-if="currentPainting?.lent_date" class="detail-row">
+            <strong>Sinds:</strong>
+            <span>{{ formatDate(currentPainting.lent_date) }}</span>
+          </div>
+          <div v-if="currentPainting?.due_date" class="detail-row">
+            <strong>Retour verwacht:</strong>
+            <span>{{ formatDate(currentPainting.due_date) }}</span>
+          </div>
+          <div v-if="isOverdue(currentPainting)" class="detail-row overdue">
+            <strong>⚠️ Status:</strong>
+            <span>{{ getDaysOverdue(currentPainting) }} dagen te laat!</span>
+          </div>
+        </div>
+        <form @submit.prevent="updateLending" class="lending-form">
+          <div class="form-group">
+            <label>Uitgeleend Aan</label>
+            <input v-model="lendForm.lent_to" type="text" />
+          </div>
+          
+          <div class="form-group">
+            <label>Email</label>
+            <input v-model="lendForm.lent_email" type="email" />
+          </div>
+          
+          <div class="form-group">
+            <label>Telefoon</label>
+            <input v-model="lendForm.lent_phone" type="tel" />
+          </div>
+
+          <div class="form-group">
+            <label>Uitgeleend op Datum</label>
+            <input v-model="lendForm.lent_date" type="date" />
+          </div>
+          
+          <div class="form-group">
+            <label>Retour Datum</label>
+            <input v-model="lendForm.due_date" type="date" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">
+              Bijwerken
+            </button>
+            <button type="button" @click="returnPainting" class="btn btn-return">
+              ✅ Teruggebracht
+            </button>
+            <button type="button" @click="closeManageLendModal" class="btn btn-secondary">
+              Sluiten
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -222,18 +331,26 @@ const categories = ref([])
 const filter = ref('all')
 const categoryFilter = ref('')
 const editingId = ref(null)
+const currentPainting = ref(null)
 const imageFile = ref(null)
 const imagePreview = ref(null)
 const imageFileName = ref('')
 const fileInput = ref(null)
 const showCategoryDropdown = ref(false)
 const filteredCategories = ref([])
+const showAddModal = ref(false)
+const showEditModal = ref(false)
+const showLendModal = ref(false)
+const showManageLendModal = ref(false)
 
 const form = ref({
   title: '',
   address: '',
   category: '',
-  image_url: '',
+  image_url: ''
+})
+
+const lendForm = ref({
   lent_to: '',
   lent_email: '',
   lent_phone: '',
@@ -338,18 +455,69 @@ function clearImage() {
   }
 }
 
-function handleLentToChange() {
-  // Set lent_date to today when lent_to is filled for the first time
-  if (form.value.lent_to && !form.value.lent_date) {
-    const today = new Date().toISOString().split('T')[0]
-    form.value.lent_date = today
+function openEditModal(painting) {
+  editingId.value = painting.id
+  form.value = {
+    title: painting.title,
+    address: painting.address,
+    category: painting.category,
+    image_url: painting.image_url
   }
-  // Clear dates and contact info when lent_to is empty
-  if (!form.value.lent_to) {
-    form.value.lent_email = ''
-    form.value.lent_phone = ''
-    form.value.lent_date = ''
-    form.value.due_date = ''
+  showEditModal.value = true
+}
+
+function openLendModal(painting) {
+  currentPainting.value = painting
+  const today = new Date().toISOString().split('T')[0]
+  lendForm.value = {
+    lent_to: '',
+    lent_email: '',
+    lent_phone: '',
+    lent_date: today,
+    due_date: ''
+  }
+  showLendModal.value = true
+}
+
+function openManageLendModal(painting) {
+  currentPainting.value = painting
+  lendForm.value = {
+    lent_to: painting.lent_to || '',
+    lent_email: painting.lent_email || '',
+    lent_phone: painting.lent_phone || '',
+    lent_date: painting.lent_date || '',
+    due_date: painting.due_date || ''
+  }
+  showManageLendModal.value = true
+}
+
+function closeModals() {
+  showAddModal.value = false
+  showEditModal.value = false
+  resetForm()
+}
+
+function closeLendModal() {
+  showLendModal.value = false
+  currentPainting.value = null
+  lendForm.value = {
+    lent_to: '',
+    lent_email: '',
+    lent_phone: '',
+    lent_date: '',
+    due_date: ''
+  }
+}
+
+function closeManageLendModal() {
+  showManageLendModal.value = false
+  currentPainting.value = null
+  lendForm.value = {
+    lent_to: '',
+    lent_email: '',
+    lent_phone: '',
+    lent_date: '',
+    due_date: ''
   }
 }
 
@@ -359,11 +527,11 @@ async function addPainting() {
     formData.append('title', form.value.title)
     formData.append('address', form.value.address || '')
     formData.append('category', form.value.category || '')
-    formData.append('lent_to', form.value.lent_to || '')
-    formData.append('lent_email', form.value.lent_email || '')
-    formData.append('lent_phone', form.value.lent_phone || '')
-    formData.append('lent_date', form.value.lent_date || '')
-    formData.append('due_date', form.value.due_date || '')
+    formData.append('lent_to', '')
+    formData.append('lent_email', '')
+    formData.append('lent_phone', '')
+    formData.append('lent_date', '')
+    formData.append('due_date', '')
     
     if (imageFile.value) {
       formData.append('image', imageFile.value)
@@ -377,7 +545,7 @@ async function addPainting() {
     if (res.ok) {
       await fetchPaintings()
       await fetchCategories()
-      resetForm()
+      closeModals()
     }
   } catch (error) {
     console.error('Error adding painting:', error)
@@ -390,11 +558,14 @@ async function updatePainting() {
     formData.append('title', form.value.title)
     formData.append('address', form.value.address || '')
     formData.append('category', form.value.category || '')
-    formData.append('lent_to', form.value.lent_to || '')
-    formData.append('lent_email', form.value.lent_email || '')
-    formData.append('lent_phone', form.value.lent_phone || '')
-    formData.append('lent_date', form.value.lent_date || '')
-    formData.append('due_date', form.value.due_date || '')
+    
+    // Keep existing lending info when editing basic details
+    const painting = paintings.value.find(p => p.id === editingId.value)
+    formData.append('lent_to', painting?.lent_to || '')
+    formData.append('lent_email', painting?.lent_email || '')
+    formData.append('lent_phone', painting?.lent_phone || '')
+    formData.append('lent_date', painting?.lent_date || '')
+    formData.append('due_date', painting?.due_date || '')
     
     if (imageFile.value) {
       formData.append('image', imageFile.value)
@@ -408,10 +579,93 @@ async function updatePainting() {
     if (res.ok) {
       await fetchPaintings()
       await fetchCategories()
-      resetForm()
+      closeModals()
     }
   } catch (error) {
     console.error('Error updating painting:', error)
+  }
+}
+
+async function lendPainting() {
+  try {
+    const painting = paintings.value.find(p => p.id === currentPainting.value.id)
+    const formData = new FormData()
+    formData.append('title', painting.title)
+    formData.append('address', painting.address || '')
+    formData.append('category', painting.category || '')
+    formData.append('lent_to', lendForm.value.lent_to)
+    formData.append('lent_email', lendForm.value.lent_email || '')
+    formData.append('lent_phone', lendForm.value.lent_phone || '')
+    formData.append('lent_date', lendForm.value.lent_date)
+    formData.append('due_date', lendForm.value.due_date || '')
+    
+    const res = await fetch(`${API_URL}/api/paintings/${currentPainting.value.id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: formData
+    })
+    if (res.ok) {
+      await fetchPaintings()
+      closeLendModal()
+    }
+  } catch (error) {
+    console.error('Error lending painting:', error)
+  }
+}
+
+async function updateLending() {
+  try {
+    const painting = paintings.value.find(p => p.id === currentPainting.value.id)
+    const formData = new FormData()
+    formData.append('title', painting.title)
+    formData.append('address', painting.address || '')
+    formData.append('category', painting.category || '')
+    formData.append('lent_to', lendForm.value.lent_to)
+    formData.append('lent_email', lendForm.value.lent_email || '')
+    formData.append('lent_phone', lendForm.value.lent_phone || '')
+    formData.append('lent_date', lendForm.value.lent_date)
+    formData.append('due_date', lendForm.value.due_date || '')
+    
+    const res = await fetch(`${API_URL}/api/paintings/${currentPainting.value.id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: formData
+    })
+    if (res.ok) {
+      await fetchPaintings()
+      closeManageLendModal()
+    }
+  } catch (error) {
+    console.error('Error updating lending:', error)
+  }
+}
+
+async function returnPainting() {
+  if (!confirm('Markeer dit schilderij als teruggebracht?')) return
+  
+  try {
+    const painting = paintings.value.find(p => p.id === currentPainting.value.id)
+    const formData = new FormData()
+    formData.append('title', painting.title)
+    formData.append('address', painting.address || '')
+    formData.append('category', painting.category || '')
+    formData.append('lent_to', '')
+    formData.append('lent_email', '')
+    formData.append('lent_phone', '')
+    formData.append('lent_date', '')
+    formData.append('due_date', '')
+    
+    const res = await fetch(`${API_URL}/api/paintings/${currentPainting.value.id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: formData
+    })
+    if (res.ok) {
+      await fetchPaintings()
+      closeManageLendModal()
+    }
+  } catch (error) {
+    console.error('Error returning painting:', error)
   }
 }
 
@@ -431,14 +685,10 @@ async function deletePainting(id) {
   }
 }
 
-function startEdit(painting) {
-  editingId.value = painting.id
-  form.value = { ...painting }
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-function cancelEdit() {
-  resetForm()
+function confirmDelete() {
+  if (!confirm('Weet je zeker dat je dit schilderij wilt verwijderen?')) return
+  deletePainting(editingId.value)
+  closeModals()
 }
 
 function resetForm() {
@@ -454,12 +704,7 @@ function resetForm() {
     title: '',
     address: '',
     category: '',
-    image_url: '',
-    lent_to: '',
-    lent_email: '',
-    lent_phone: '',
-    lent_date: '',
-    due_date: ''
+    image_url: ''
   }
 }
 
@@ -519,147 +764,48 @@ onMounted(() => {
 
 <style scoped>
 .painting-manager {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
-h2 {
+/* Header Section */
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.header-section h2 {
   color: #333;
-  margin-bottom: 20px;
-  font-size: 1.8em;
+  margin: 0;
+  font-size: 2em;
 }
 
-/* Add Painting Form */
-.add-painting-section {
-  margin-bottom: 40px;
-  padding-bottom: 30px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.painting-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
-.form-group label {
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #555;
-  font-size: 0.9em;
-}
-
-.form-group input {
-  padding: 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1em;
-  transition: border-color 0.3s;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.form-group input:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-/* Image Upload */
-.image-upload-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.file-input {
-  display: none;
-}
-
-.file-label {
-  display: inline-block;
-  padding: 12px 24px;
+.btn-add {
+  padding: 14px 28px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  text-align: center;
-  transition: all 0.3s;
-}
-
-.file-label:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.image-preview {
-  position: relative;
-  width: 100%;
-  max-width: 300px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid #e0e0e0;
-}
-
-.image-preview img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.btn-clear-image {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(220, 53, 69, 0.9);
-  color: white;
   border: none;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
-.btn-clear-image:hover {
-  background: #dc3545;
-  transform: scale(1.1);
-}
-
-.form-actions {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
+.btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 /* Buttons */
 .btn {
-  padding: 12px 24px;
+  padding: 10px 20px;
   border: none;
   border-radius: 8px;
-  font-size: 1em;
+  font-size: 0.95em;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -668,7 +814,6 @@ h2 {
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  flex: 1;
 }
 
 .btn-primary:hover {
@@ -686,23 +831,55 @@ h2 {
 }
 
 .btn-edit {
-  background: #ffc107;
-  color: #333;
-  flex: 1;
+  background: #fff;
+  color: #555;
+  border: 2px solid #e0e0e0;
+  padding: 8px 12px;
 }
 
 .btn-edit:hover {
-  background: #e0a800;
+  border-color: #667eea;
+  color: #667eea;
 }
 
 .btn-delete {
   background: #dc3545;
   color: white;
-  flex: 1;
 }
 
 .btn-delete:hover {
   background: #c82333;
+}
+
+.btn-lend {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+  flex: 1;
+}
+
+.btn-lend:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+.btn-manage-lend {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+  color: white;
+  flex: 1;
+}
+
+.btn-manage-lend:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(237, 137, 54, 0.4);
+}
+
+.btn-return {
+  background: #48bb78;
+  color: white;
+}
+
+.btn-return:hover {
+  background: #38a169;
 }
 
 /* Filter Tabs */
@@ -710,16 +887,18 @@ h2 {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .tab {
-  padding: 10px 20px;
+  padding: 12px 24px;
   background: #f8f9fa;
   border: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s;
+  font-size: 1em;
 }
 
 .tab:hover {
@@ -775,56 +954,11 @@ h2 {
   border-color: #667eea;
 }
 
-/* Category Input with Dropdown */
-.category-input-wrapper {
-  position: relative;
-}
-
-.category-input {
-  width: 100%;
-  padding: 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1em;
-  transition: border-color 0.3s;
-}
-
-.category-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.category-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  max-height: 200px;
-  overflow-y: auto;
-  background: white;
-  border: 2px solid #667eea;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-}
-
-.category-option {
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.category-option:hover {
-  background: #f0f0ff;
-  color: #667eea;
-}
-
 /* Paintings Grid */
 .paintings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
 }
 
 .painting-card {
@@ -833,24 +967,26 @@ h2 {
   border-radius: 12px;
   padding: 20px;
   transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
 }
 
 .painting-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .painting-card.lent {
-  border-color: #ffc107;
-  background: #fffbf0;
+  border-color: #ed8936;
+  background: linear-gradient(to bottom, #fffaf0 0%, #ffffff 100%);
 }
 
 .painting-image {
   width: 100%;
-  height: 200px;
+  height: 220px;
   overflow: hidden;
   border-radius: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .painting-image img {
@@ -861,13 +997,13 @@ h2 {
 
 .painting-image-placeholder {
   width: 100%;
-  height: 200px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
   font-size: 4em;
   color: #ccc;
 }
@@ -876,22 +1012,25 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+  gap: 10px;
 }
 
 .painting-header h3 {
   color: #333;
-  font-size: 1.3em;
+  font-size: 1.4em;
   margin: 0;
   flex: 1;
+  line-height: 1.3;
 }
 
 .status-badge {
-  padding: 4px 12px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.85em;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .status-badge.available {
@@ -922,27 +1061,24 @@ h2 {
 .painting-card p {
   margin: 8px 0;
   color: #666;
-}
-
-.artist {
-  font-size: 1.1em;
-  color: #555;
+  font-size: 0.95em;
 }
 
 .lending-info {
   background: #f8f9fa;
-  padding: 12px;
+  padding: 14px;
   border-radius: 8px;
-  margin: 15px 0;
+  margin: 12px 0;
+  border-left: 4px solid #ed8936;
 }
 
-.lending-info a {
-  color: #667eea;
-  text-decoration: none;
+.lending-info p {
+  margin: 6px 0;
+  font-size: 0.9em;
 }
 
-.lending-info a:hover {
-  text-decoration: underline;
+.lending-info strong {
+  color: #333;
 }
 
 .overdue-warning {
@@ -953,56 +1089,388 @@ h2 {
   border-left: 4px solid #dc3545;
   font-weight: 600;
   margin-top: 10px;
-}
-
-.metadata-info {
-  background: #f0f4ff;
-  padding: 10px;
-  border-radius: 6px;
-  margin: 15px 0;
   font-size: 0.9em;
-}
-
-.metadata-item {
-  margin: 4px 0 !important;
-  color: #555 !important;
-}
-
-.metadata-item strong {
-  color: #333;
-}
-
-.timestamp {
-  font-size: 0.9em;
-  color: #999;
-  margin-left: 4px;
 }
 
 .card-actions {
   display: flex;
   gap: 10px;
-  margin-top: 15px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 
 .no-paintings {
   text-align: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   color: #999;
-  font-size: 1.1em;
+  font-size: 1.2em;
+  grid-column: 1 / -1;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 2px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  z-index: 10;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.6em;
+  color: #333;
+}
+
+.btn-close {
+  background: #f8f9fa;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.btn-close:hover {
+  background: #e9ecef;
+  color: #333;
+  transform: rotate(90deg);
+}
+
+.painting-form,
+.lending-form {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.95em;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1em;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.image-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-label {
+  display: inline-block;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.file-label:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.image-preview {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #e0e0e0;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.btn-clear-image {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(220, 53, 69, 0.95);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.btn-clear-image:hover {
+  background: #dc3545;
+  transform: scale(1.1);
+}
+
+.category-input-wrapper {
+  position: relative;
+}
+
+.category-input {
+  width: 100%;
+}
+
+.category-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 2px solid #667eea;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.category-option {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95em;
+}
+
+.category-option:hover {
+  background: #f0f0ff;
+  color: #667eea;
+}
+
+.painting-preview {
+  padding: 20px 28px;
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.painting-preview h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 1.3em;
+}
+
+.preview-image {
+  width: 100%;
+  max-height: 250px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lending-details {
+  padding: 20px 28px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 16px;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row strong {
+  color: #555;
+  font-weight: 600;
+  min-width: 140px;
+}
+
+.detail-row span,
+.detail-row a {
+  color: #333;
+  text-align: right;
+}
+
+.detail-row a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.detail-row a:hover {
+  text-decoration: underline;
+}
+
+.detail-row.overdue {
+  background: #fff5f5;
+  padding: 12px;
+  border-radius: 6px;
+  border: 2px solid #fc8181;
+}
+
+.detail-row.overdue strong,
+.detail-row.overdue span {
+  color: #c53030;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-actions .btn {
+  flex: 1;
+  min-width: 120px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
+  .header-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  
+  .btn-add {
+    width: 100%;
+  }
+  
+  .filter-tabs {
+    flex-direction: column;
+  }
+  
+  .tab {
+    width: 100%;
   }
   
   .paintings-grid {
     grid-template-columns: 1fr;
   }
   
-  .filter-tabs {
+  .modal-content {
+    max-width: 100%;
+    max-height: 95vh;
+  }
+  
+  .modal-header {
+    padding: 20px;
+  }
+  
+  .painting-form,
+  .lending-form,
+  .painting-preview,
+  .lending-details {
+    padding: 20px;
+  }
+  
+  .modal-actions {
     flex-direction: column;
+  }
+  
+  .modal-actions .btn {
+    width: 100%;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .detail-row strong {
+    min-width: auto;
+  }
+  
+  .detail-row span,
+  .detail-row a {
+    text-align: left;
   }
 }
 </style>
