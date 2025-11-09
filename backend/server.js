@@ -148,6 +148,25 @@ if (resend) {
   console.log('⚠️  Email scheduler not started (RESEND_API_KEY not configured)');
 }
 
+// Public API endpoints (no authentication required)
+app.get("/api/public/paintings", async (req, res) => {
+  try {
+    const rows = await db.all("SELECT id, title, address, category, image_url, lent_to FROM paintings ORDER BY id DESC");
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/public/categories", async (req, res) => {
+  try {
+    const rows = await db.all("SELECT DISTINCT category FROM paintings WHERE category IS NOT NULL AND category != '' ORDER BY category");
+    res.json(rows.map(row => row.category));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all paintings - Protected route
 app.get("/api/paintings", isAuthenticated, async (req, res) => {
   const rows = await db.all("SELECT * FROM paintings ORDER BY id DESC");

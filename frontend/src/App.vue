@@ -1,20 +1,23 @@
 <script setup>
 import { RouterView, useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { computed } from 'vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
+const isPublicRoute = computed(() => route.path === '/' || route.path === '/login')
+
 async function handleLogout() {
   await authStore.logout()
-  router.push('/login')
+  router.push('/')
 }
 </script>
 
 <template>
   <div id="app">
-    <header v-if="authStore.isAuthenticated">
+    <header v-if="authStore.isAuthenticated && !isPublicRoute">
       <div class="header-content">
         <div>
           <h1>🎨 Schilderijen Beheer</h1>
@@ -22,10 +25,10 @@ async function handleLogout() {
         </div>
         <div class="user-section">
           <nav class="nav-menu">
-            <RouterLink to="/paintings" class="nav-link" :class="{ active: route.path === '/paintings' }">
+            <RouterLink to="/admin/paintings" class="nav-link" :class="{ active: route.path === '/admin/paintings' }">
               📋 Lijst
             </RouterLink>
-            <RouterLink to="/calendar" class="nav-link" :class="{ active: route.path === '/calendar' }">
+            <RouterLink to="/admin/calendar" class="nav-link" :class="{ active: route.path === '/admin/calendar' }">
               📅 Kalender
             </RouterLink>
           </nav>
@@ -34,7 +37,7 @@ async function handleLogout() {
         </div>
       </div>
     </header>
-    <main>
+    <main :class="{ 'public-page': isPublicRoute }">
       <RouterView />
     </main>
   </div>
@@ -145,5 +148,12 @@ main {
   padding: 30px;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+main.public-page {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
 }
 </style>

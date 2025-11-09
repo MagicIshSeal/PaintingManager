@@ -10,13 +10,17 @@ A secure web application for managing paintings with authentication, image uploa
 
 ## 🚀 Features
 
-- ✅ **Secure Authentication** - Login required, session-based auth with bcrypt
+- ✅ **Public Landing Page** - Showcase paintings to everyone without login
+- ✅ **Secure Authentication** - Login required for admin features
 - ✅ **Painting Management** - Add, edit, delete paintings with images
 - ✅ **Lending Tracking** - Track who borrowed paintings and when they're due
+- ✅ **Email Notifications** - Automatic emails for lending, reminders, and overdue
 - ✅ **Category Management** - Organize paintings by category
 - ✅ **Image Upload** - Upload and store painting images
+- ✅ **Calendar View** - Visual timeline of lending schedules
 - ✅ **User Tracking** - See who created/modified each painting
 - ✅ **Responsive UI** - Works on desktop and mobile
+- ✅ **Dutch Language** - Complete interface in Nederlands
 
 ## 🛠️ Technology Stack
 
