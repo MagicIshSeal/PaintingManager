@@ -1,0 +1,41 @@
+services:
+  painting_backend:  # <--- Renamed from 'backend' to be unique
+    build: ./backend
+    container_name: painting_backend # Explicit name for Nginx Proxy Manager
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend-data:/app/data
+      - ./backend/uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - BACKEND_URL=${BACKEND_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+    restart: unless-stopped
+    networks:
+      - web_proxy
+
+  painting_frontend: # <--- Renamed from 'frontend' to be unique
+    build:
+      context: ./frontend
+      args:
+        # Note: If accessing from browser, this might need to be your public IP/nip.io address
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
+    container_name: painting_frontend # Explicit name for Nginx Proxy Manager
+    ports:
+      - "5173:80"
+    depends_on:
+      - painting_backend
+    restart: unless-stopped
+    networks:
+      - web_proxy
+
+networks:
+  web_proxy:
+    external: true
+
+volumes:
+  backend-data:
